@@ -49,11 +49,13 @@ import Layout from "../layouts/Layout.astro"
 	async function handleSubmit() {
         let prompt = "";
         let svgCode = "";
-        const promptElement = document.getElementById("user-prompt");
+        const promptElement = document.getElementById("prompt");
         prompt = promptElement ? promptElement.value : "";
         console.log('submitted: ', prompt); // message affiché sur votre console d'inspecteur dans le navigateur
-        const svgContainer = document.getElementById("svg-container");
-        let svgOutput = document.getElementById("svg-output");
+        const svgContainer = document.getElementById("svgPreview");
+        let svgOutput = document.getElementById("generatedCode");
+        svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
+        generateButton.disabled = true;
         svgCode = await generateSVG(prompt);
         console.log('svgCode: ', svgCode);
         svgOutput.textContent = svgCode;
@@ -61,7 +63,7 @@ import Layout from "../layouts/Layout.astro"
         generateButton.disabled = false;
 
 	}
-    const generateButton = document.getElementById("generate-button");
+    const generateButton = document.getElementById("generateBtn");
 	if (generateButton) {
 		generateButton.addEventListener("click", handleSubmit);
 	}
