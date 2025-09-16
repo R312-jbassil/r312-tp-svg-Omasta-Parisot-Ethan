@@ -1,0 +1,68 @@
+---
+import Layout from "../layouts/Layout.astro"
+---
+
+<Layout>
+<main class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+      
+      <div class="card bg-base-200 shadow-xl p-4">
+        <h2 class="text-xl font-semibold mb-4">Entrer un prompt</h2>
+        <textarea 
+          id="prompt" 
+          class="textarea textarea-bordered w-full h-32 mb-4" 
+          placeholder="Écris ton prompt ici..."></textarea>
+        <button id="generateBtn" class="btn btn-primary w-full">Générer</button>
+      </div>
+
+      <div class="card bg-base-200 shadow-xl p-4">
+        <h2 class="text-xl font-semibold mb-4">Code généré</h2>
+        <pre class="bg-base-100 p-4 rounded-lg overflow-x-auto h-64">
+<code id="generatedCode">// Le code généré apparaîtra ici</code>
+        </pre>
+      </div>
+
+      <div class="card bg-base-200 shadow-xl p-4 flex flex-col items-center justify-center">
+        <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
+        <div id="svgPreview" class="bg-white border rounded-lg w-full h-64 flex items-center justify-center">
+          <span class="text-gray-400">[SVG affiché ici]</span>
+        </div>
+      </div>
+
+    </main>
+</Layout>
+    
+
+<script>
+    //@ts-nocheck
+	
+	async function generateSVG(prompt) {
+		console.log('Generating SVG for prompt:', prompt);
+		const res = await fetch('/api/generateSVG', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ prompt }),
+		});
+		const data = await res.json();
+		return data.svg;
+	}
+
+	async function handleSubmit() {
+        let prompt = "";
+        let svgCode = "";
+        const promptElement = document.getElementById("user-prompt");
+        prompt = promptElement ? promptElement.value : "";
+        console.log('submitted: ', prompt); // message affiché sur votre console d'inspecteur dans le navigateur
+        const svgContainer = document.getElementById("svg-container");
+        let svgOutput = document.getElementById("svg-output");
+        svgCode = await generateSVG(prompt);
+        console.log('svgCode: ', svgCode);
+        svgOutput.textContent = svgCode;
+        svgContainer.innerHTML = svgCode;
+        generateButton.disabled = false;
+
+	}
+    const generateButton = document.getElementById("generate-button");
+	if (generateButton) {
+		generateButton.addEventListener("click", handleSubmit);
+	}
+</script>
