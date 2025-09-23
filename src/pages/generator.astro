@@ -12,7 +12,9 @@ import Layout from "../layouts/Layout.astro"
         id="user-prompt" 
         class="textarea textarea-bordered w-full h-32 mb-4" 
         placeholder="Écris ton prompt ici..."></textarea>
-      <button id="generateBtn" class="btn btn-primary w-full">Générer</button>
+      
+      <button id="generateBtn" class="btn btn-primary w-full mb-2">Générer</button>
+      <button id="edit-button" class="btn btn-secondary w-full">Edit</button>
     </div>
 
     <!-- Code généré -->
@@ -40,26 +42,24 @@ import Layout from "../layouts/Layout.astro"
 
 let promptList = []; // Historique des échanges
 
-// Fonction pour générer le SVG via l’API
 async function generateSVG(promptList) {
   console.log("Generating SVG for promptList:", promptList);
   const res = await fetch("/api/generateSVG", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify( promptList ),
+    body: JSON.stringify(promptList),
   });
   const data = await res.json();
   return data; // doit contenir { role: "assistant", content: "..." }
 }
 
+// Fonction Générer
 async function handleSubmit() {
-  let prompt = "";
-  let aiResponse = "";
   const promptElement = document.getElementById("user-prompt");
-  prompt = promptElement ? promptElement.value : "";
-  console.log("submitted: ", prompt);
+  let prompt = promptElement ? promptElement.value : "";
+  console.log("Prompt soumis : ", prompt);
 
-  // Réinitialiser la liste des prompts
+  // Réinitialiser la liste pour un nouveau prompt
   promptList.length = 0; 
   promptList.push({ role: "user", content: prompt });
 
@@ -67,32 +67,63 @@ async function handleSubmit() {
   svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
   generateButton.disabled = true;
 
-  let svgOutput = document.getElementById("svg-output");
+  const svgOutput = document.getElementById("svg-output");
 
-  // Appeler la fonction pour générer le SVG
-  aiResponse = (await generateSVG(promptList)).svg;
-  console.log("AI response: ", aiResponse);
-  // Extraire le SVG de la réponse
+  let aiResponse = (await generateSVG(promptList)).svg;
+
   const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
   aiResponse.content = svgMatch ? svgMatch[0] : "";
 
-  console.log("svgCode: ", aiResponse.content);
-
-  // Ajouter la réponse de l'IA à la liste des prompts
   promptList.push(aiResponse);
 
-  // Afficher le SVG généré
   svgOutput.textContent = aiResponse.content;
   svgContainer.innerHTML = aiResponse.content;
 
-  // Réactiver le bouton
   generateButton.disabled = false;
 
-  console.log("Historique des échanges:", promptList);
+  console.log("Historique des prompts : ", promptList);
 }
 
+// Fonction Edit
+async function handleEdit() {
+  const promptElement = document.getElementById("user-prompt");
+  let prompt = promptElement ? promptElement.value : "";
+  console.log("Prompt soumis pour édition : ", prompt);
+
+  // Ajouter le prompt utilisateur à l'historique
+  promptList.push({ role: "user", content: prompt });
+
+  const svgContainer = document.getElementById("svg-container");
+  svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
+  generateButton.disabled = true;
+  editButton.disabled = true;
+
+  const svgOutput = document.getElementById("svg-output");
+
+  let aiResponse = (await generateSVG(promptList)).svg;
+
+  const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
+  aiResponse.content = svgMatch ? svgMatch[0] : "";
+
+  promptList.push(aiResponse);
+
+  svgOutput.textContent = aiResponse.content;
+  svgContainer.innerHTML = aiResponse.content;
+
+  generateButton.disabled = false;
+  editButton.disabled = false;
+
+  console.log("Historique des prompts : ", promptList);
+}
+
+// Event listeners
 const generateButton = document.getElementById("generateBtn");
 if (generateButton) {
   generateButton.addEventListener("click", handleSubmit);
+}
+
+const editButton = document.getElementById("edit-button");
+if (editButton) {
+  editButton.addEventListener("click", handleEdit);
 }
 </script>
