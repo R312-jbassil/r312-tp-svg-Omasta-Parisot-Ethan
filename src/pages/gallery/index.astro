@@ -1,0 +1,43 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import pb from "../../utils/pb";
+
+let savedSVGs = [];
+try {
+  const records = await pb.collection("Saved_svgs").getFullList(); 
+  savedSVGs = records.map(record => ({
+    id: record.id,
+    name: record.name,
+    code_svg: record.code_svg,
+    chat_history: record.chat_history,
+  }));
+} catch (error) {
+  console.error("Erreur lors de la récupération des SVG :", error);
+}
+---
+
+<Layout>
+  <main class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <h1 class="text-2xl font-bold col-span-full mb-4">Galerie des SVG sauvegardés</h1>
+
+    {savedSVGs.length === 0 ? (
+      <p class="col-span-full text-gray-500">Aucun SVG sauvegardé pour le moment.</p>
+    ) : (
+      savedSVGs.map(svg => (
+        <div class="card bg-base-200 shadow-md p-4 flex flex-col items-center">
+          <h2 class="text-lg font-semibold mb-2">{svg.name}</h2>
+          <div class="border w-full h-48 flex items-center justify-center mb-2 overflow-auto bg-white">
+            <div innerHTML={svg.code_svg}></div>
+          </div>
+          <pre class="bg-base-100 p-2 rounded w-full h-32 overflow-auto text-sm">
+<code>{svg.code_svg}</code>
+          </pre>
+          <details class="w-full mt-2">
+            <summary class="cursor-pointer text-sm text-gray-700">Historique des prompts</summary>
+            <pre class="bg-gray-50 p-2 rounded overflow-auto text-xs">{JSON.stringify(svg.chat_history, null, 2)}</pre>
+          </details>
+        </div>
+      ))
+    )}
+  </main>
+</Layout>

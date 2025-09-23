@@ -5,7 +5,6 @@ import Layout from "../layouts/Layout.astro"
 <Layout>
   <main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
       
-    <!-- Zone saisie utilisateur -->
     <div class="card bg-base-200 shadow-xl p-4">
       <h2 class="text-xl font-semibold mb-4">Entrer un prompt</h2>
       <textarea 
@@ -14,10 +13,10 @@ import Layout from "../layouts/Layout.astro"
         placeholder="Écris ton prompt ici..."></textarea>
       
       <button id="generateBtn" class="btn btn-primary w-full mb-2">Générer</button>
-      <button id="edit-button" class="btn btn-secondary w-full">Edit</button>
+      <button id="edit-button" class="btn btn-secondary w-full mb-2">Edit</button>
+      <button id="save-button" class="btn btn-success w-full">Sauvegarder</button>
     </div>
 
-    <!-- Code généré -->
     <div class="card bg-base-200 shadow-xl p-4">
       <h2 class="text-xl font-semibold mb-4">Code généré</h2>
       <pre class="bg-base-100 p-4 rounded-lg overflow-x-auto h-64">
@@ -25,7 +24,6 @@ import Layout from "../layouts/Layout.astro"
       </pre>
     </div>
 
-    <!-- Aperçu SVG -->
     <div class="card bg-base-200 shadow-xl p-4 flex flex-col items-center justify-center">
       <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
       <div id="svg-container" class="bg-white border rounded-lg w-full h-64 flex items-center justify-center">
@@ -35,32 +33,31 @@ import Layout from "../layouts/Layout.astro"
 
   </main>
 </Layout>
-    
 
 <script>
 //@ts-nocheck
 
-let promptList = []; // Historique des échanges
+let promptList = [];
 
+// Fonction pour générer le SVG via l’API
 async function generateSVG(promptList) {
-  console.log("Generating SVG for promptList:", promptList);
   const res = await fetch("/api/generateSVG", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(promptList),
   });
   const data = await res.json();
-  return data; // doit contenir { role: "assistant", content: "..." }
+  return data;
 }
 
 // Fonction Générer
 async function handleSubmit() {
   const promptElement = document.getElementById("user-prompt");
-  let prompt = promptElement ? promptElement.value : "";
+  const prompt = promptElement ? promptElement.value : "";
   console.log("Prompt soumis : ", prompt);
 
-  // Réinitialiser la liste pour un nouveau prompt
-  promptList.length = 0; 
+  // Nouveau prompt -> réinitialise l'historique
+  promptList.length = 0;
   promptList.push({ role: "user", content: prompt });
 
   const svgContainer = document.getElementById("svg-container");
@@ -68,7 +65,6 @@ async function handleSubmit() {
   generateButton.disabled = true;
 
   const svgOutput = document.getElementById("svg-output");
-
   let aiResponse = (await generateSVG(promptList)).svg;
 
   const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
@@ -78,7 +74,6 @@ async function handleSubmit() {
 
   svgOutput.textContent = aiResponse.content;
   svgContainer.innerHTML = aiResponse.content;
-
   generateButton.disabled = false;
 
   console.log("Historique des prompts : ", promptList);
@@ -87,10 +82,9 @@ async function handleSubmit() {
 // Fonction Edit
 async function handleEdit() {
   const promptElement = document.getElementById("user-prompt");
-  let prompt = promptElement ? promptElement.value : "";
+  const prompt = promptElement ? promptElement.value : "";
   console.log("Prompt soumis pour édition : ", prompt);
 
-  // Ajouter le prompt utilisateur à l'historique
   promptList.push({ role: "user", content: prompt });
 
   const svgContainer = document.getElementById("svg-container");
@@ -99,7 +93,6 @@ async function handleEdit() {
   editButton.disabled = true;
 
   const svgOutput = document.getElementById("svg-output");
-
   let aiResponse = (await generateSVG(promptList)).svg;
 
   const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
@@ -109,21 +102,49 @@ async function handleEdit() {
 
   svgOutput.textContent = aiResponse.content;
   svgContainer.innerHTML = aiResponse.content;
-
   generateButton.disabled = false;
   editButton.disabled = false;
 
   console.log("Historique des prompts : ", promptList);
 }
 
-// Event listeners
-const generateButton = document.getElementById("generateBtn");
-if (generateButton) {
-  generateButton.addEventListener("click", handleSubmit);
+// Fonction Sauvegarder
+async function saveSVG(params) {
+  const res = await fetch("/api/saveSVG", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  return await res.json();
 }
 
-const editButton = document.getElementById("edit-button");
-if (editButton) {
-  editButton.addEventListener("click", handleEdit);
+// Gestionnaire du bouton Sauvegarder
+const saveButton = document.getElementById("save-button");
+if (saveButton) {
+  saveButton.addEventListener("click", async () => {
+    const name = prompt("Entrez un nom pour le SVG :");
+    const svgOutput = document.getElementById("svg-output")?.textContent;
+    console.log("Sauvegarde du SVG : ", svgOutput);
+
+    const params = {
+      name: name || "SVG sans nom",
+      code_svg: svgOutput || "<svg></svg>",
+      chat_history: promptList,
+    };
+
+    const result = await saveSVG(params);
+    if (result.success) {
+      alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
+    } else {
+      alert(`Erreur lors de la sauvegarde : ${result.error}`);
+    }
+  });
 }
+
+// Event listeners pour Générer et Edit
+const generateButton = document.getElementById("generateBtn");
+if (generateButton) generateButton.addEventListener("click", handleSubmit);
+
+const editButton = document.getElementById("edit-button");
+if (editButton) editButton.addEventListener("click", handleEdit);
 </script>
