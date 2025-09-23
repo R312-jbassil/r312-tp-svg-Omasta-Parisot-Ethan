@@ -2,70 +2,97 @@
 import Layout from "../layouts/Layout.astro"
 ---
 
-
 <Layout>
-<main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+  <main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
       
-      <div class="card bg-base-200 shadow-xl p-4">
-        <h2 class="text-xl font-semibold mb-4">Entrer un prompt</h2>
-        <textarea 
-          id="prompt" 
-          class="textarea textarea-bordered w-full h-32 mb-4" 
-          placeholder="Écris ton prompt ici..."></textarea>
-        <button id="generateBtn" class="btn btn-primary w-full">Générer</button>
-      </div>
+    <!-- Zone saisie utilisateur -->
+    <div class="card bg-base-200 shadow-xl p-4">
+      <h2 class="text-xl font-semibold mb-4">Entrer un prompt</h2>
+      <textarea 
+        id="user-prompt" 
+        class="textarea textarea-bordered w-full h-32 mb-4" 
+        placeholder="Écris ton prompt ici..."></textarea>
+      <button id="generateBtn" class="btn btn-primary w-full">Générer</button>
+    </div>
 
-      <div class="card bg-base-200 shadow-xl p-4">
-        <h2 class="text-xl font-semibold mb-4">Code généré</h2>
-        <pre class="bg-base-100 p-4 rounded-lg overflow-x-auto h-64">
-<code id="generatedCode">// Le code généré apparaîtra ici</code>
-        </pre>
-      </div>
+    <!-- Code généré -->
+    <div class="card bg-base-200 shadow-xl p-4">
+      <h2 class="text-xl font-semibold mb-4">Code généré</h2>
+      <pre class="bg-base-100 p-4 rounded-lg overflow-x-auto h-64">
+<code id="svg-output">// Le code généré apparaîtra ici</code>
+      </pre>
+    </div>
 
-      <div class="card bg-base-200 shadow-xl p-4 flex flex-col items-center justify-center">
-        <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
-        <div id="svgPreview" class="bg-white border rounded-lg w-full h-64 flex items-center justify-center">
-          <span class="text-gray-400">[SVG affiché ici]</span>
-        </div>
+    <!-- Aperçu SVG -->
+    <div class="card bg-base-200 shadow-xl p-4 flex flex-col items-center justify-center">
+      <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
+      <div id="svg-container" class="bg-white border rounded-lg w-full h-64 flex items-center justify-center">
+        <span class="text-gray-400">[SVG affiché ici]</span>
       </div>
+    </div>
 
-    </main>
+  </main>
 </Layout>
     
 
 <script>
-    //@ts-nocheck
-	
-	async function generateSVG(prompt) {
-		console.log('Generating SVG for prompt:', prompt);
-		const res = await fetch('/api/generateSVG', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ prompt }),
-		});
-		const data = await res.json();
-		return data.svg;
-	}
+//@ts-nocheck
 
-	async function handleSubmit() {
-        let prompt = "";
-        let svgCode = "";
-        const promptElement = document.getElementById("prompt");
-        prompt = promptElement ? promptElement.value : "";
-        console.log('submitted: ', prompt); // message affiché sur votre console d'inspecteur dans le navigateur
-        const svgContainer = document.getElementById("svgPreview");
-        let svgOutput = document.getElementById("generatedCode");
-        svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
-        generateButton.disabled = true;
-        svgCode = await generateSVG(prompt);
-        console.log('svgCode: ', svgCode);
-        svgOutput.textContent = svgCode;
-        svgContainer.innerHTML = svgCode;
-        generateButton.disabled = false;
+let promptList = []; // Historique des échanges
 
-	}
-    const generateButton = document.getElementById("generateBtn");
-	if (generateButton) {
-		generateButton.addEventListener("click", handleSubmit);
-	}
+// Fonction pour générer le SVG via l’API
+async function generateSVG(promptList) {
+  console.log("Generating SVG for promptList:", promptList);
+  const res = await fetch("/api/generateSVG", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify( promptList ),
+  });
+  const data = await res.json();
+  return data; // doit contenir { role: "assistant", content: "..." }
+}
+
+async function handleSubmit() {
+  let prompt = "";
+  let aiResponse = "";
+  const promptElement = document.getElementById("user-prompt");
+  prompt = promptElement ? promptElement.value : "";
+  console.log("submitted: ", prompt);
+
+  // Réinitialiser la liste des prompts
+  promptList.length = 0; 
+  promptList.push({ role: "user", content: prompt });
+
+  const svgContainer = document.getElementById("svg-container");
+  svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
+  generateButton.disabled = true;
+
+  let svgOutput = document.getElementById("svg-output");
+
+  // Appeler la fonction pour générer le SVG
+  aiResponse = (await generateSVG(promptList)).svg;
+  console.log("AI response: ", aiResponse);
+  // Extraire le SVG de la réponse
+  const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
+  aiResponse.content = svgMatch ? svgMatch[0] : "";
+
+  console.log("svgCode: ", aiResponse.content);
+
+  // Ajouter la réponse de l'IA à la liste des prompts
+  promptList.push(aiResponse);
+
+  // Afficher le SVG généré
+  svgOutput.textContent = aiResponse.content;
+  svgContainer.innerHTML = aiResponse.content;
+
+  // Réactiver le bouton
+  generateButton.disabled = false;
+
+  console.log("Historique des échanges:", promptList);
+}
+
+const generateButton = document.getElementById("generateBtn");
+if (generateButton) {
+  generateButton.addEventListener("click", handleSubmit);
+}
 </script>
