@@ -12,16 +12,16 @@ import Layout from "../layouts/Layout.astro"
       </div>
     </div>
 
-    <div class="card bg-base-200 shadow-xl p-4 flex flex-col relative">
+    <div class="card bg-base-200 shadow-xl p-4 flex flex-col relative h-[calc(100vh-100px)]">
       <h2 class="text-xl font-semibold mb-4">Chat</h2>
 
-      <div id="chat-history" class="flex flex-col gap-4 w-full mb-20 overflow-y-auto flex-grow">
+      <div id="chat-history" class="flex flex-col gap-4 w-full overflow-y-auto overflow-x-hidden flex-grow pr-2">
         <span class="text-error">Aucun historique de chat.</span>
       </div>
 
       <form 
         id="input-prompt-form" 
-        class="flex flex-col gap-2 w-full absolute bottom-0 left-0 right-0 bg-base-300 p-4"
+        class="flex flex-col gap-2 w-full bg-base-300 p-4"
         autocomplete="off"
       >
         <input type="hidden" id="history-hidden" value="[]" />
@@ -40,6 +40,7 @@ import Layout from "../layouts/Layout.astro"
         </div>
       </form>
     </div>
+
   </main>
 </Layout>
 
@@ -48,15 +49,17 @@ import Layout from "../layouts/Layout.astro"
 
 let promptList = [];
 
-async function generateSVG(promptList) {
+// Génération SVG depuis l'historique
+async function generateSVG(history) {
   const res = await fetch("/api/generateSVG", { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(promptList),
+    body: JSON.stringify(history),
   });
   return await res.json();
 }
 
+// Mise à jour du chat
 function updateChat() {
   const chatHistory = document.getElementById("chat-history");
   chatHistory.innerHTML = "";
@@ -69,41 +72,63 @@ function updateChat() {
   promptList.forEach(msg => {
     const wrapper = document.createElement("div");
     wrapper.className = `chat ${msg.role === "user" ? "chat-start" : "chat-end"}`;
-    wrapper.innerHTML = `
-      <div class="chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}">
-        <pre>${msg.content}</pre>
-      </div>
-      <div class="chat-footer opacity-60 text-xs mt-1">${msg.role}</div>
-    `;
+
+    const bubble = document.createElement("div");
+    bubble.className = `chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}`;
+
+    const block = document.createElement("pre");
+    block.className = "whitespace-pre-wrap break-words text-xs";
+    block.textContent = msg.content;
+    bubble.appendChild(block);
+
+    wrapper.appendChild(bubble);
+
+    const footer = document.createElement("div");
+    footer.className = "chat-footer opacity-60 text-xs mt-1";
+    footer.textContent = msg.role;
+    wrapper.appendChild(footer);
+
     chatHistory.appendChild(wrapper);
   });
 
   chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
+// Submit formulaire pour générer SVG
 const form = document.getElementById("input-prompt-form");
-form.addEventListener("submit", async (e) => {
+form?.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const input = document.getElementById("prompt-input");
-  const prompt = input.value.trim();
-  if (!prompt) return;
 
-  promptList.push({ role: "user", content: prompt });
+  const formData = new FormData(form);
+  const userPrompt = formData.get("editPrompt")?.toString().trim();
+  if (!userPrompt) return;
+
+  // Ajouter le prompt de l'utilisateur
+  const promptObj = { role: "user", content: userPrompt };
+  promptList.push(promptObj);
   updateChat();
-  input.value = "";
 
+  // Loader
   const svgContainer = document.getElementById("svg-container");
   svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
 
-  let aiResponse = (await generateSVG(promptList)).svg;
-  const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
-  aiResponse.content = svgMatch ? svgMatch[0] : "";
-  promptList.push(aiResponse);
+  // Génération SVG
+  const response = await generateSVG(promptList);
+  let aiResponse = response.svg?.content || "";
 
+  // Extraire SVG
+  const svgMatch = aiResponse.match(/<svg[\s\S]*?<\/svg>/i);
+  const svgContent = svgMatch ? svgMatch[0] : "<svg></svg>";
+  svgContainer.innerHTML = svgContent;
+
+  // Ajouter la réponse de l'assistant
+  promptList.push({ role: "assistant", content: svgContent });
   updateChat();
-  svgContainer.innerHTML = aiResponse.content;
+
+  form.reset();
 });
 
+// Création d'un nouveau SVG
 async function saveSVG(params) {
   const res = await fetch("/api/saveSVG", {
     method: "POST",
@@ -113,22 +138,46 @@ async function saveSVG(params) {
   return await res.json();
 }
 
-const saveButton = document.getElementById("save-button");
-saveButton.addEventListener("click", async () => {
-  const name = prompt("Entrez un nom pour le SVG :");
+// Mise à jour d'un SVG existant
+async function update(updatedData) {
+  const response = await fetch("/api/updateSVG", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updatedData),
+  });
+  return response.json();
+}
+
+// Bouton "Sauvegarder" (création ou mise à jour selon ID)
+document.getElementById("save-button")?.addEventListener("click", async () => {
   const svgOutput = document.getElementById("svg-container")?.innerHTML;
+  const svgId = document.getElementById("svg-id-hidden")?.value;
+  const name = prompt("Entrez un nom pour le SVG :") || "SVG sans nom";
 
   const params = {
-    name: name || "SVG sans nom",
+    name,
     code_svg: svgOutput || "<svg></svg>",
     chat_history: promptList,
   };
 
-  const result = await saveSVG(params);
-  if (result.success) {
-    alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
+  if (svgId) {
+    // Update
+    params.id = svgId;
+    const result = await update(params);
+    if (result.success) {
+      alert(`SVG mis à jour avec succès (ID: ${result.record.id})`);
+    } else {
+      alert(`Erreur lors de la mise à jour : ${result.error}`);
+    }
   } else {
-    alert(`Erreur lors de la sauvegarde : ${result.error}`);
+    // Save
+    const result = await saveSVG(params);
+    if (result.success) {
+      document.getElementById("svg-id-hidden").value = result.id;
+      alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
+    } else {
+      alert(`Erreur lors de la sauvegarde : ${result.error}`);
+    }
   }
 });
 </script>
