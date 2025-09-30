@@ -1,21 +1,38 @@
 ---
 import "../styles/global.css";
+import { Astro } from "astro";
+
+// Utilise la langue définie par le middleware
+const userLang = Astro.locals.lang || 'en';
 ---
 
 <!doctype html>
-<html lang="en" data-theme="monTheme" class="h-full">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro Basics</title>
-	</head>
-	<body class="h-full">
-		<div class="h-full flex flex-col min-h-0">
-			<div class="flex-1 min-h-0">
-				<slot />
-			</div>
-		</div>
-	</body>
+<html lang={userLang} data-theme="monTheme" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Astro Basics</title>
+  </head>
+  <body class="h-full">
+    <div class="h-full flex flex-col min-h-0">
+      <header class="p-4 border-b flex justify-end">
+        <form method="POST" class="flex items-center">
+          <select 
+            name="language" 
+            class="select" 
+            onchange="this.form.submit()"
+          >
+            <option value="en" {...(userLang === "en" ? { selected: true } : {})}>English</option>
+			<option value="fr" {...(userLang === "fr" ? { selected: true } : {})}>Français</option>
+		   </select>
+        </form>
+      </header>
+
+      <div class="flex-1 min-h-0">
+        <slot />
+      </div>
+    </div>
+  </body>
 </html>

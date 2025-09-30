@@ -1,14 +1,18 @@
 ---
-import Layout from "../layouts/Layout.astro"
+import Layout from "../layouts/Layout.astro";
+import { ui } from "../i18n/ui";
+
+const locale = (Astro.locals as any).lang || 'en';
+const texts = ui[locale as 'en' | 'fr'];
 ---
 
-<Layout>
+<Layout title={texts.generator.title}>
   <main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 h-[calc(100vh-100px)]">
 
     <div class="card bg-base-200 shadow-xl p-4 flex flex-col">
-      <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
+      <h2 class="text-xl font-semibold mb-4">{texts.generator.title}</h2>
       <div id="svg-container" class="bg-white border rounded-lg w-full flex-1 flex items-center justify-center overflow-auto">
-        <span class="text-gray-400">[SVG affiché ici]</span>
+        <span class="text-gray-400">{texts.generator.contentPlaceholder}</span>
       </div>
     </div>
 
@@ -16,7 +20,7 @@ import Layout from "../layouts/Layout.astro"
       <h2 class="text-xl font-semibold mb-4">Chat</h2>
 
       <div id="chat-history" class="flex flex-col gap-4 w-full overflow-y-auto overflow-x-hidden flex-grow pr-2">
-        <span class="text-error">Aucun historique de chat.</span>
+        <span class="text-error" id="no-history-message">{locale === 'fr' ? 'Aucun historique de chat.' : 'No chat history.'}</span>
       </div>
 
       <form 
@@ -33,10 +37,12 @@ import Layout from "../layouts/Layout.astro"
             name="editPrompt" 
             type="text" 
             class="input flex-grow" 
-            placeholder="Entrez un prompt pour éditer le SVG..." 
+            placeholder={texts.generator.promptLabel}
           />
-          <button class="btn btn-primary" type="submit">Edit</button>
-          <button id="save-button" class="btn btn-success" type="button">Sauvegarder</button>
+          <button class="btn btn-primary" type="submit">{texts.generator.editButton}</button>
+          <button id="save-button" class="btn btn-success" type="button">
+            {locale === 'fr' ? 'Sauvegarder' : 'Save'}
+          </button>
         </div>
       </form>
     </div>
@@ -44,12 +50,11 @@ import Layout from "../layouts/Layout.astro"
   </main>
 </Layout>
 
-<script>
+<script define:vars={{ locale, texts: ui[locale as 'en' | 'fr'].generator }}>
 //@ts-nocheck
 
 let promptList = [];
 
-// Génération SVG depuis l'historique
 async function generateSVG(history) {
   const res = await fetch("/api/generateSVG", { 
     method: "POST",
@@ -59,13 +64,13 @@ async function generateSVG(history) {
   return await res.json();
 }
 
-// Mise à jour du chat
 function updateChat() {
   const chatHistory = document.getElementById("chat-history");
   chatHistory.innerHTML = "";
 
   if (promptList.length === 0) {
-    chatHistory.innerHTML = `<span class="text-error">Aucun historique de chat.</span>`;
+    const noHistoryMsg = locale === 'fr' ? 'Aucun historique de chat.' : 'No chat history.';
+    chatHistory.innerHTML = `<span class="text-error">${noHistoryMsg}</span>`;
     return;
   }
 
@@ -94,7 +99,6 @@ function updateChat() {
   chatHistory.scrollTop = chatHistory.scrollHeight;
 }
 
-// Submit formulaire pour générer SVG
 const form = document.getElementById("input-prompt-form");
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -103,32 +107,26 @@ form?.addEventListener("submit", async (e) => {
   const userPrompt = formData.get("editPrompt")?.toString().trim();
   if (!userPrompt) return;
 
-  // Ajouter le prompt de l'utilisateur
   const promptObj = { role: "user", content: userPrompt };
   promptList.push(promptObj);
   updateChat();
 
-  // Loader
   const svgContainer = document.getElementById("svg-container");
   svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
 
-  // Génération SVG
   const response = await generateSVG(promptList);
   let aiResponse = response.svg?.content || "";
 
-  // Extraire SVG
   const svgMatch = aiResponse.match(/<svg[\s\S]*?<\/svg>/i);
   const svgContent = svgMatch ? svgMatch[0] : "<svg></svg>";
   svgContainer.innerHTML = svgContent;
 
-  // Ajouter la réponse de l'assistant
   promptList.push({ role: "assistant", content: svgContent });
   updateChat();
 
   form.reset();
 });
 
-// Création d'un nouveau SVG
 async function saveSVG(params) {
   const res = await fetch("/api/saveSVG", {
     method: "POST",
@@ -138,7 +136,6 @@ async function saveSVG(params) {
   return await res.json();
 }
 
-// Mise à jour d'un SVG existant
 async function update(updatedData) {
   const response = await fetch("/api/updateSVG", {
     method: "POST",
@@ -148,11 +145,14 @@ async function update(updatedData) {
   return response.json();
 }
 
-// Bouton "Sauvegarder" (création ou mise à jour selon ID)
 document.getElementById("save-button")?.addEventListener("click", async () => {
   const svgOutput = document.getElementById("svg-container")?.innerHTML;
   const svgId = document.getElementById("svg-id-hidden")?.value;
-  const name = prompt("Entrez un nom pour le SVG :") || "SVG sans nom";
+  const promptMsg = locale === 'fr' 
+    ? "Entrez un nom pour le SVG :" 
+    : "Enter a name for the SVG:";
+  const defaultName = locale === 'fr' ? "SVG sans nom" : "Unnamed SVG";
+  const name = prompt(promptMsg) || defaultName;
 
   const params = {
     name,
@@ -160,23 +160,34 @@ document.getElementById("save-button")?.addEventListener("click", async () => {
     chat_history: promptList,
   };
 
+  const successUpdateMsg = locale === 'fr' 
+    ? `SVG mis à jour avec succès (ID: ${result.record.id})` 
+    : `SVG successfully updated (ID: ${result.record.id})`;
+  const errorUpdateMsg = locale === 'fr' 
+    ? `Erreur lors de la mise à jour : ${result.error}` 
+    : `Update error: ${result.error}`;
+  const successSaveMsg = locale === 'fr' 
+    ? `SVG sauvegardé avec succès (ID: ${result.id})` 
+    : `SVG successfully saved (ID: ${result.id})`;
+  const errorSaveMsg = locale === 'fr' 
+    ? `Erreur lors de la sauvegarde : ${result.error}` 
+    : `Save error: ${result.error}`;
+
   if (svgId) {
-    // Update
     params.id = svgId;
     const result = await update(params);
     if (result.success) {
-      alert(`SVG mis à jour avec succès (ID: ${result.record.id})`);
+      alert(successUpdateMsg);
     } else {
-      alert(`Erreur lors de la mise à jour : ${result.error}`);
+      alert(errorUpdateMsg);
     }
   } else {
-    // Save
     const result = await saveSVG(params);
     if (result.success) {
       document.getElementById("svg-id-hidden").value = result.id;
-      alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
+      alert(successSaveMsg);
     } else {
-      alert(`Erreur lors de la sauvegarde : ${result.error}`);
+      alert(errorSaveMsg);
     }
   }
 });

@@ -1,6 +1,10 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import pb from "../../utils/pb";
+import { ui } from "../../i18n/ui";
+
+const locale = (Astro.locals as any).lang || 'en';
+const texts = ui[locale as 'en' | 'fr'];
 
 let savedSVGs = [];
 try {
@@ -16,24 +20,24 @@ try {
 }
 ---
 
-<Layout>
+<Layout title={texts.gallery.title}>
   <main class="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <h1 class="text-2xl font-bold col-span-full mb-4">Galerie des SVG sauvegardés</h1>
+    <h1 class="text-2xl font-bold col-span-full mb-4">{texts.gallery.title}</h1>
 
     {savedSVGs.length === 0 ? (
-      <p class="col-span-full text-gray-500">Aucun SVG sauvegardé pour le moment.</p>
+      <p class="col-span-full text-gray-500">{texts.gallery.noSVG}</p>
     ) : (
       savedSVGs.map(svg => (
         <div class="card bg-base-200 shadow-md p-4 flex flex-col items-center">
           <h2 class="text-lg font-semibold mb-2">{svg.name}</h2>
           <div class="border w-full h-48 flex items-center justify-center mb-2 overflow-auto bg-white">
-            <div innerHTML={svg.code_svg}></div>
+            <div set:html={svg.code_svg}></div>
           </div>
           <pre class="bg-base-100 p-2 rounded w-full h-32 overflow-auto text-sm">
 <code>{svg.code_svg}</code>
           </pre>
           <details class="w-full mt-2">
-            <summary class="cursor-pointer text-sm text-gray-700">Historique des prompts</summary>
+            <summary class="cursor-pointer text-sm text-gray-700">{texts.gallery.promptHistory}</summary>
             <pre class="bg-gray-50 p-2 rounded overflow-auto text-xs">{JSON.stringify(svg.chat_history, null, 2)}</pre>
           </details>
         </div>
