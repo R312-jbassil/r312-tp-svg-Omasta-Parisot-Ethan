@@ -1,0 +1,45 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import pb from "../../utils/pb";
+
+const id = Astro.params.id;
+let svg;
+try {
+  svg = await pb.collection("Saved_svgs").getOne(id);
+} catch (error) {
+  console.error("Erreur lors de la récupération du SVG :", error);
+}
+---
+
+<Layout>
+  <main class="p-6 flex flex-col gap-6">
+    {svg ? (
+      <>
+        <h1 class="text-2xl font-bold">{svg.name}</h1>
+
+        <div class="card bg-base-200 shadow-md p-4">
+          <h2 class="text-lg font-semibold mb-2">Aperçu SVG</h2>
+          <div class="border w-full h-64 flex items-center justify-center overflow-auto bg-white">
+            <div innerHTML={svg.code_svg}></div>
+          </div>
+        </div>
+
+        <div class="card bg-base-200 shadow-md p-4">
+          <h2 class="text-lg font-semibold mb-2">Code SVG</h2>
+          <pre class="bg-base-100 p-2 rounded w-full overflow-auto text-sm h-64">
+<code>{svg.code_svg}</code>
+          </pre>
+        </div>
+
+        <div class="card bg-base-200 shadow-md p-4">
+          <h2 class="text-lg font-semibold mb-2">Historique des échanges</h2>
+          <pre class="bg-base-100 p-2 rounded w-full overflow-auto text-xs h-64">
+{JSON.stringify(svg.chat_history, null, 2)}
+          </pre>
+        </div>
+      </>
+    ) : (
+      <p class="text-red-500">SVG introuvable</p>
+    )}
+  </main>
+</Layout>

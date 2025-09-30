@@ -3,34 +3,43 @@ import Layout from "../layouts/Layout.astro"
 ---
 
 <Layout>
-  <main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-      
-    <div class="card bg-base-200 shadow-xl p-4">
-      <h2 class="text-xl font-semibold mb-4">Entrer un prompt</h2>
-      <textarea 
-        id="user-prompt" 
-        class="textarea textarea-bordered w-full h-32 mb-4" 
-        placeholder="Écris ton prompt ici..."></textarea>
-      
-      <button id="generateBtn" class="btn btn-primary w-full mb-2">Générer</button>
-      <button id="edit-button" class="btn btn-secondary w-full mb-2">Edit</button>
-      <button id="save-button" class="btn btn-success w-full">Sauvegarder</button>
-    </div>
+  <main data-theme="monTheme" class="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 h-[calc(100vh-100px)]">
 
-    <div class="card bg-base-200 shadow-xl p-4">
-      <h2 class="text-xl font-semibold mb-4">Code généré</h2>
-      <pre class="bg-base-100 p-4 rounded-lg overflow-x-auto h-64">
-<code id="svg-output">// Le code généré apparaîtra ici</code>
-      </pre>
-    </div>
-
-    <div class="card bg-base-200 shadow-xl p-4 flex flex-col items-center justify-center">
+    <div class="card bg-base-200 shadow-xl p-4 flex flex-col">
       <h2 class="text-xl font-semibold mb-4">Aperçu SVG</h2>
-      <div id="svg-container" class="bg-white border rounded-lg w-full h-64 flex items-center justify-center">
+      <div id="svg-container" class="bg-white border rounded-lg w-full flex-1 flex items-center justify-center overflow-auto">
         <span class="text-gray-400">[SVG affiché ici]</span>
       </div>
     </div>
 
+    <div class="card bg-base-200 shadow-xl p-4 flex flex-col relative">
+      <h2 class="text-xl font-semibold mb-4">Chat</h2>
+
+      <div id="chat-history" class="flex flex-col gap-4 w-full mb-20 overflow-y-auto flex-grow">
+        <span class="text-error">Aucun historique de chat.</span>
+      </div>
+
+      <form 
+        id="input-prompt-form" 
+        class="flex flex-col gap-2 w-full absolute bottom-0 left-0 right-0 bg-base-300 p-4"
+        autocomplete="off"
+      >
+        <input type="hidden" id="history-hidden" value="[]" />
+        <input type="hidden" id="svg-id-hidden" value="" />
+
+        <div class="flex items-center gap-2">
+          <input 
+            id="prompt-input" 
+            name="editPrompt" 
+            type="text" 
+            class="input flex-grow" 
+            placeholder="Entrez un prompt pour éditer le SVG..." 
+          />
+          <button class="btn btn-primary" type="submit">Edit</button>
+          <button id="save-button" class="btn btn-success" type="button">Sauvegarder</button>
+        </div>
+      </form>
+    </div>
   </main>
 </Layout>
 
@@ -39,76 +48,62 @@ import Layout from "../layouts/Layout.astro"
 
 let promptList = [];
 
-// Fonction pour générer le SVG via l’API
 async function generateSVG(promptList) {
-  const res = await fetch("/api/generateSVG", {
+  const res = await fetch("/api/generate-svg", { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(promptList),
   });
-  const data = await res.json();
-  return data;
+  return await res.json();
 }
 
-// Fonction Générer
-async function handleSubmit() {
-  const promptElement = document.getElementById("user-prompt");
-  const prompt = promptElement ? promptElement.value : "";
-  console.log("Prompt soumis : ", prompt);
+function updateChat() {
+  const chatHistory = document.getElementById("chat-history");
+  chatHistory.innerHTML = "";
 
-  // Nouveau prompt -> réinitialise l'historique
-  promptList.length = 0;
+  if (promptList.length === 0) {
+    chatHistory.innerHTML = `<span class="text-error">Aucun historique de chat.</span>`;
+    return;
+  }
+
+  promptList.forEach(msg => {
+    const wrapper = document.createElement("div");
+    wrapper.className = `chat ${msg.role === "user" ? "chat-start" : "chat-end"}`;
+    wrapper.innerHTML = `
+      <div class="chat-bubble ${msg.role === "user" ? "bg-primary text-primary-content" : "bg-secondary text-secondary-content"}">
+        <pre>${msg.content}</pre>
+      </div>
+      <div class="chat-footer opacity-60 text-xs mt-1">${msg.role}</div>
+    `;
+    chatHistory.appendChild(wrapper);
+  });
+
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+}
+
+const form = document.getElementById("input-prompt-form");
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("prompt-input");
+  const prompt = input.value.trim();
+  if (!prompt) return;
+
   promptList.push({ role: "user", content: prompt });
+  updateChat();
+  input.value = "";
 
   const svgContainer = document.getElementById("svg-container");
   svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
-  generateButton.disabled = true;
 
-  const svgOutput = document.getElementById("svg-output");
   let aiResponse = (await generateSVG(promptList)).svg;
-
   const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
   aiResponse.content = svgMatch ? svgMatch[0] : "";
-
   promptList.push(aiResponse);
 
-  svgOutput.textContent = aiResponse.content;
+  updateChat();
   svgContainer.innerHTML = aiResponse.content;
-  generateButton.disabled = false;
+});
 
-  console.log("Historique des prompts : ", promptList);
-}
-
-// Fonction Edit
-async function handleEdit() {
-  const promptElement = document.getElementById("user-prompt");
-  const prompt = promptElement ? promptElement.value : "";
-  console.log("Prompt soumis pour édition : ", prompt);
-
-  promptList.push({ role: "user", content: prompt });
-
-  const svgContainer = document.getElementById("svg-container");
-  svgContainer.innerHTML = `<span class="loading loading-ring loading-xl"></span>`;
-  generateButton.disabled = true;
-  editButton.disabled = true;
-
-  const svgOutput = document.getElementById("svg-output");
-  let aiResponse = (await generateSVG(promptList)).svg;
-
-  const svgMatch = aiResponse.content.match(/<svg[\s\S]*?<\/svg>/i);
-  aiResponse.content = svgMatch ? svgMatch[0] : "";
-
-  promptList.push(aiResponse);
-
-  svgOutput.textContent = aiResponse.content;
-  svgContainer.innerHTML = aiResponse.content;
-  generateButton.disabled = false;
-  editButton.disabled = false;
-
-  console.log("Historique des prompts : ", promptList);
-}
-
-// Fonction Sauvegarder
 async function saveSVG(params) {
   const res = await fetch("/api/saveSVG", {
     method: "POST",
@@ -118,33 +113,22 @@ async function saveSVG(params) {
   return await res.json();
 }
 
-// Gestionnaire du bouton Sauvegarder
 const saveButton = document.getElementById("save-button");
-if (saveButton) {
-  saveButton.addEventListener("click", async () => {
-    const name = prompt("Entrez un nom pour le SVG :");
-    const svgOutput = document.getElementById("svg-output")?.textContent;
-    console.log("Sauvegarde du SVG : ", svgOutput);
+saveButton.addEventListener("click", async () => {
+  const name = prompt("Entrez un nom pour le SVG :");
+  const svgOutput = document.getElementById("svg-container")?.innerHTML;
 
-    const params = {
-      name: name || "SVG sans nom",
-      code_svg: svgOutput || "<svg></svg>",
-      chat_history: promptList,
-    };
+  const params = {
+    name: name || "SVG sans nom",
+    code_svg: svgOutput || "<svg></svg>",
+    chat_history: promptList,
+  };
 
-    const result = await saveSVG(params);
-    if (result.success) {
-      alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
-    } else {
-      alert(`Erreur lors de la sauvegarde : ${result.error}`);
-    }
-  });
-}
-
-// Event listeners pour Générer et Edit
-const generateButton = document.getElementById("generateBtn");
-if (generateButton) generateButton.addEventListener("click", handleSubmit);
-
-const editButton = document.getElementById("edit-button");
-if (editButton) editButton.addEventListener("click", handleEdit);
+  const result = await saveSVG(params);
+  if (result.success) {
+    alert(`SVG sauvegardé avec succès (ID: ${result.id})`);
+  } else {
+    alert(`Erreur lors de la sauvegarde : ${result.error}`);
+  }
+});
 </script>
