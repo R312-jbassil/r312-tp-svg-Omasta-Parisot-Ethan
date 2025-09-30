@@ -49,7 +49,7 @@ import Layout from "../layouts/Layout.astro"
 let promptList = [];
 
 async function generateSVG(promptList) {
-  const res = await fetch("/api/generate-svg", { 
+  const res = await fetch("/api/generateSVG", { 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(promptList),
