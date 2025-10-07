@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+if (Astro.locals.user) {
+  return Astro.redirect("/");
+}
+---
+
+<Layout theme="monTheme">
+  <div class="min-h-screen flex items-center justify-center bg-base-200">
+    <div class="card w-full max-w-md shadow-xl bg-base-100">
+      <div class="card-body">
+        <h1 class="card-title text-3xl mb-4 justify-center">Connexion</h1>
+        <!-- Formulaire de connexion -->
+        <form id="login-form" class="flex flex-col gap-4">
+          <input type="email" name="email" placeholder="Email" required class="input input-bordered w-full" />
+          <input type="password" name="password" placeholder="Mot de passe" required class="input input-bordered w-full" />
+          <button type="submit" class="btn btn-primary w-full">Se connecter</button>
+        </form>
+        <!-- Zone d'affichage du statut -->
+        <p id="status" class="mt-4 text-center text-error"></p>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  //@ts-nocheck
+  localStorage.removeItem("user");
+  const form = document.getElementById("login-form");
+  const status = document.getElementById("status");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+
+    const res = await fetch("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: formData.get("email"),
+        password: formData.get("password"),
+      }),
+      credentials: "include",
+    });
+
+    if (res.ok) {
+      const resData = await res.json();
+      localStorage.setItem("user", JSON.stringify(resData.user));
+      status.textContent = "✅ Connexion réussie !";
+      window.location.href = "/";
+    } else {
+      status.textContent = "❌ Email ou mot de passe invalide";
+    }
+  });
+</script>

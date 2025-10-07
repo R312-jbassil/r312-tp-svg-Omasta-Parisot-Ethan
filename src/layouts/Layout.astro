@@ -1,9 +1,9 @@
 ---
 import "../styles/global.css";
-import { Astro } from "astro";
 
-// Utilise la langue définie par le middleware
-const userLang = Astro.locals.lang || 'en';
+// Récupère la langue et l'utilisateur depuis le middleware
+const userLang = Astro.locals.lang || "en";
+const user = Astro.locals.user;
 ---
 
 <!doctype html>
@@ -17,19 +17,30 @@ const userLang = Astro.locals.lang || 'en';
   </head>
   <body class="h-full">
     <div class="h-full flex flex-col min-h-0">
-      <header class="p-4 border-b flex justify-end">
+      <header class="p-4 border-b flex justify-between items-center">
+        <!-- Sélecteur de langue -->
         <form method="POST" class="flex items-center">
           <select 
             name="language" 
-            class="select" 
+            class="select mr-4" 
             onchange="this.form.submit()"
           >
             <option value="en" {...(userLang === "en" ? { selected: true } : {})}>English</option>
-			<option value="fr" {...(userLang === "fr" ? { selected: true } : {})}>Français</option>
-		   </select>
+            <option value="fr" {...(userLang === "fr" ? { selected: true } : {})}>Français</option>
+          </select>
         </form>
+
+        <!-- Bouton login/logout -->
+        {user ? (
+          <form method="POST" action="/api/logout" class="m-0 p-0">
+            <button type="submit" class="btn btn-primary">Logout</button>
+          </form>
+        ) : (
+          <a href="/login" class="btn btn-primary">Login</a>
+        )}
       </header>
 
+      <!-- Contenu principal -->
       <div class="flex-1 min-h-0">
         <slot />
       </div>
