@@ -38,3 +38,5 @@ export const onRequest = async (context, next) => {
   // Continuer le traitement normal (afficher la page demandée)
   return next();
 };
+
+// fonctionnel //
