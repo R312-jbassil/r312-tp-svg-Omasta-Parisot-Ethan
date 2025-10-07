@@ -17,27 +17,40 @@ const user = Astro.locals.user;
   </head>
   <body class="h-full">
     <div class="h-full flex flex-col min-h-0">
-      <header class="p-4 border-b flex justify-between items-center">
-        <!-- Sélecteur de langue -->
-        <form method="POST" class="flex items-center">
-          <select 
-            name="language" 
-            class="select mr-4" 
-            onchange="this.form.submit()"
-          >
-            <option value="en" {...(userLang === "en" ? { selected: true } : {})}>English</option>
-            <option value="fr" {...(userLang === "fr" ? { selected: true } : {})}>Français</option>
-          </select>
-        </form>
 
-        <!-- Bouton login/logout -->
-        {user ? (
-          <form method="POST" action="/api/logout" class="m-0 p-0">
-            <button type="submit" class="btn btn-primary">Logout</button>
+      <!-- Header -->
+      <header class="p-4 border-b flex justify-between items-center">
+        <!-- Section gauche : langue + gallery si connecté -->
+        <div class="flex items-center gap-2">
+          <!-- Sélecteur de langue -->
+          <form method="POST" class="flex items-center">
+            <select 
+              name="language" 
+              class="select mr-2" 
+              onchange="this.form.submit()"
+            >
+              <option value="en" {...(userLang === "en" ? { selected: true } : {})}>English</option>
+              <option value="fr" {...(userLang === "fr" ? { selected: true } : {})}>Français</option>
+            </select>
           </form>
-        ) : (
-          <a href="/login" class="btn btn-primary">Login</a>
-        )}
+
+          <!-- Bouton Gallery si connecté -->
+          {user && <a href="/gallery" class="btn btn-primary">Gallery</a>}
+        </div>
+
+        <!-- Section droite : Login / Sign Up / Logout -->
+        <div class="flex items-center gap-2">
+          {user ? (
+            <form method="POST" action="/api/logout" class="m-0 p-0">
+              <button type="submit" class="btn btn-primary">Logout</button>
+            </form>
+          ) : (
+            <>
+              <a href="/login" class="btn btn-primary">Login</a>
+              <a href="/signup" class="btn btn-primary">Sign Up</a>
+            </>
+          )}
+        </div>
       </header>
 
       <!-- Contenu principal -->

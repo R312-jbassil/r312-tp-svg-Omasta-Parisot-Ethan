@@ -6,9 +6,20 @@ import { ui } from "../../i18n/ui";
 const locale = (Astro.locals as any).lang || 'en';
 const texts = ui[locale as 'en' | 'fr'];
 
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect("/login");
+}
+
 let savedSVGs = [];
 try {
-  const records = await pb.collection("Saved_svgs").getFullList(); 
+  const records = await pb
+    .collection("Saved_svgs")
+    .getFullList({
+      sort: "-created", // tri du plus récent au plus ancien
+      filter: `user = "${user.id}"` // filtre sur l'id utilisateur
+    });
+
   savedSVGs = records.map(record => ({
     id: record.id,
     name: record.name,

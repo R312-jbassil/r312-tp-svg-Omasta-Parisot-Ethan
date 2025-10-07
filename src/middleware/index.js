@@ -12,19 +12,24 @@ export const onRequest = async (context, next) => {
     }
   }
 
-  // Pour les API : bloquer si non connecté sauf /api/login
+  // ------------------------------
+  // Gestion des API : bloquer si non connecté sauf /api/login
+  // ------------------------------
   if (context.url.pathname.startsWith("/api/")) {
-    if (!context.locals.user && context.url.pathname !== "/api/login") {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
-    }
-    return next();
+  const publicAPIs = ["/api/login", "/api/signup"]; // <-- ajouter signup ici
+  if (!context.locals.user && !publicAPIs.includes(context.url.pathname)) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
+  return next();
+}
 
-  // Pour les pages : rediriger vers /login si non connecté
-  if (!context.locals.user) {
-    if (context.url.pathname !== "/login" && context.url.pathname !== "/") {
-      return Response.redirect(new URL("/login", context.url), 303);
-    }
+
+  // ------------------------------
+  // Pages publiques : login et signup accessibles sans authentification
+  // ------------------------------
+  const publicPages = ["/login", "/signup", "/"];
+  if (!context.locals.user && !publicPages.includes(context.url.pathname)) {
+    return Response.redirect(new URL("/login", context.url), 303);
   }
 
   // ------------------------------
